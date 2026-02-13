@@ -9,19 +9,55 @@
 <body>
     <div class="container">
         <h1>🚗 My Car Detector</h1>
+        
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+            <button id="training-tab" class="tab-btn active">🎓 Обучение</button>
+            <button id="recognition-tab" class="tab-btn">🎯 Распознавание</button>
+        </div>
+
+        <!-- Camera Preview -->
         <div class="camera-wrapper">
             <video id="webcam" autoplay playsinline></video>
-            <div id="result" class="result"></div>
+            <div id="result-overlay" class="result-overlay"></div>
         </div>
-        <div class="confidence">
-            <span id="confidence-text"></span>
+
+        <!-- Training Mode -->
+        <div id="training-mode" class="mode-content active">
+            <div class="hint">
+                💡 Рекомендуется 15-20 примеров на класс
+            </div>
+            
+            <button id="add-class-btn" class="primary-btn">➕ Добавить класс</button>
+            
+            <div id="classes-container" class="classes-container"></div>
         </div>
-        <button id="toggle-btn">Запустить</button>
+
+        <!-- Recognition Mode -->
+        <div id="recognition-mode" class="mode-content">
+            <div id="recognition-status" class="recognition-status">
+                Сначала обучи модель!
+            </div>
+        </div>
+
+        <!-- Model Management -->
+        <div class="model-controls">
+            <button id="save-model-btn" class="control-btn">💾 Сохранить модель</button>
+            <button id="load-model-btn" class="control-btn">📂 Загрузить модель</button>
+            <button id="clear-model-btn" class="control-btn danger">🗑️ Очистить всё</button>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="camera-controls">
+            <button id="flip-camera-btn" class="control-btn">🔄 Переключить камеру</button>
+        </div>
+
         <div id="error" class="error"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest/dist/mobilenet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@latest/dist/knn-classifier.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
