@@ -197,6 +197,7 @@ function renderClasses() {
 
 // Capture logic
 let captureInterval = null;
+let isCapturing = false;
 
 async function startCapture(className) {
     if (!mobilenetModel || !classifier) {
@@ -204,13 +205,23 @@ async function startCapture(className) {
         return;
     }
     
+    if (isCapturing) {
+        return;
+    }
+    
+    isCapturing = true;
+    
     const btn = document.querySelector(`.capture-btn[data-class="${className}"]`);
     if (btn) {
         btn.classList.add('capturing');
         btn.textContent = 'Захват...';
     }
     
-    captureInterval = setInterval(async () => {
+    async function captureFrame() {
+        if (!isCapturing) {
+            return;
+        }
+        
         try {
             const img = tf.browser.fromPixels(videoElement);
             const activation = mobilenetModel.infer(img, true);
@@ -226,16 +237,23 @@ async function startCapture(className) {
                 examplesEl.textContent = `📸 ${classes[className].examples} примеров`;
             }
             
+            // Schedule next capture
+            captureInterval = setTimeout(captureFrame, 100);
+            
         } catch (error) {
             console.error('Capture error:', error);
             stopCapture();
         }
-    }, 100); // Capture ~10 frames per second
+    }
+    
+    captureFrame();
 }
 
 function stopCapture() {
+    isCapturing = false;
+    
     if (captureInterval) {
-        clearInterval(captureInterval);
+        clearTimeout(captureInterval);
         captureInterval = null;
     }
     
@@ -360,7 +378,20 @@ function loadModelFromStorage() {
         // Restore classifier dataset
         Object.keys(modelData.dataset).forEach((className) => {
             const data = modelData.dataset[className];
-            const tensor = tf.tensor(data, [data.length / 1024, 1024]);
+            
+            // Validate data length
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.warn(`Skipping invalid data for class ${className}`);
+                return;
+            }
+            
+            if (data.length % 1024 !== 0) {
+                console.warn(`Invalid data length for class ${className}: ${data.length}. Expected multiple of 1024.`);
+                return;
+            }
+            
+            const numExamples = data.length / 1024;
+            const tensor = tf.tensor(data, [numExamples, 1024]);
             classifier.addExample(tensor, className);
             tensor.dispose();
         });
