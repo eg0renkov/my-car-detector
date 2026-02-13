@@ -1,28 +1,52 @@
 # 🚗 My Car Detector
 
-Web app to recognize my car using Teachable Machine + TensorFlow.js
+Web app with **in-app training** — recognize anything directly from your phone camera! No server needed, everything runs in the browser.
 
-## Features
+## ✨ Features
 
-- 📱 Mobile-friendly responsive design
-- 🎥 Real-time webcam feed
-- 🤖 Teachable Machine model integration
-- ✅ Visual feedback (green for match, red for no match)
-- 📊 Confidence percentage display
-- 🔴 Start/Stop button
+- 🎓 **In-App Training** — create custom classes and train the model right from your camera
+- 🎯 **Real-Time Recognition** — instant object detection with confidence percentage
+- 💾 **Persistent Storage** — save/load trained models to localStorage
+- 📱 **Mobile-First** — optimized for smartphone use with rear camera support
+- 🌐 **100% Client-Side** — all processing happens in the browser using TensorFlow.js
+- 🎨 **Modern Dark UI** — sleek interface in Russian language
 
-## How to Use
+## 🚀 How to Use
 
-1. Open `index.html` in a web browser
-2. **Important:** The app requires HTTPS or localhost to access the camera
-3. Click "Запустить" (Start) to begin detection
-4. Point your camera at your car
-5. The app will show:
-   - ✅ Green overlay "Это твоя тачка!" if confidence >= 80%
-   - ❌ Red overlay "Не она" if confidence < 80%
-6. Click "Остановить" (Stop) to pause detection
+### Training Mode (🎓 Обучение)
 
-## Local Development
+1. Open the app (requires HTTPS or localhost for camera access)
+2. Click **"➕ Добавить класс"** and enter a class name (e.g., "Моя тачка", "Кот", "Памятник")
+3. Point your camera at the object
+4. Hold down the **"Захватить"** button to capture 15-20 training examples
+5. Repeat for each class you want to recognize
+6. Click **"💾 Сохранить модель"** to save your training
+
+### Recognition Mode (🎯 Распознавание)
+
+1. Switch to the **"🎯 Распознавание"** tab
+2. Point your camera at objects
+3. The app will show:
+   - **Green overlay** (≥80% confidence) — high confidence match
+   - **Yellow overlay** (<80% confidence) — low confidence match
+   - Class name and confidence percentage
+
+### Model Management
+
+- **💾 Сохранить модель** — save trained model to browser storage
+- **📂 Загрузить модель** — load previously saved model (auto-loads on start)
+- **🗑️ Очистить всё** — delete all classes and saved model
+- **🔄 Переключить камеру** — switch between front/rear camera
+
+## 💡 Tips for Best Results
+
+- **Capture 15-20 examples** per class for reliable recognition
+- **Vary angles and distances** while capturing examples
+- **Use good lighting** for better accuracy
+- **Rear camera works best** — front camera is flipped by default
+- **Train multiple classes** for better differentiation
+
+## 🛠️ Local Development
 
 ### Option 1: Python HTTP Server
 ```bash
@@ -38,33 +62,83 @@ npx http-server
 ### Option 3: VS Code Live Server
 Install the "Live Server" extension and click "Go Live"
 
-## Technical Details
+## 📱 Browser Compatibility
 
-- **Model URL:** `https://teachablemachine.withgoogle.com/models/L00hgPrz-/`
-- **Threshold:** 80% confidence
-- **Webcam Resolution:** 400x400
-- **Libraries:** TensorFlow.js & Teachable Machine Image (from CDN)
+**Recommended:**
+- Chrome/Edge (mobile & desktop)
+- Safari (iOS/macOS)
 
-## Model Configuration
+**Also works on:**
+- Firefox
+- Any modern browser with WebRTC + WebGL support
 
-You can configure which class represents your car in `app.js`:
-```javascript
-const MY_CAR_CLASS = null; // null = auto-detect (uses first class)
-// or
-const MY_CAR_CLASS = 'MyCarClassName'; // specific class name
+## 🔒 Requirements
+
+- **HTTPS or localhost** — camera access requires secure context
+- **Internet connection** — for loading TensorFlow.js libraries from CDN
+- **Disable ad blockers** — some may block CDN resources
+
+⚠️ File protocol (`file://`) will not work due to browser security restrictions.
+
+## ⚙️ Technical Details
+
+### Technology Stack
+- **TensorFlow.js** — machine learning in the browser
+- **MobileNet** — pre-trained model for feature extraction (transfer learning)
+- **KNN Classifier** — k-nearest neighbors for instant training
+- **localStorage** — model persistence across sessions
+
+### How It Works
+1. MobileNet extracts 1024-dimensional feature vectors from camera frames
+2. KNN Classifier learns from these features (no backpropagation needed!)
+3. Predictions run in real-time at ~10 FPS
+4. Model data is serialized to localStorage for persistence
+
+### Performance
+- **Model size:** ~5MB (MobileNet) + your training data (~1KB per example)
+- **Inference speed:** ~100ms per frame
+- **Training speed:** Instant (no model updates needed)
+
+## 🏗️ Architecture
+
+```
+User Camera → MobileNet (feature extraction) → KNN Classifier → Prediction
+                                                    ↓
+                                            localStorage (save/load)
 ```
 
-## Browser Compatibility
+## 📸 Example Use Cases
 
-- Chrome/Edge (recommended)
-- Safari (iOS/macOS)
-- Firefox
-- Any modern browser with WebRTC support
+- **Car recognition** — "Моя тачка" vs "Не моя тачка"
+- **Pet identification** — recognize your cat/dog
+- **Monument/landmark recognition** — identify famous places
+- **Friend recognition** — "Петя", "Маша", "Иван"
+- **Product categorization** — organize items by type
+- **Custom object detection** — anything you can imagine!
 
-## Security Note
+## 🐛 Troubleshooting
 
-Camera access requires:
-- HTTPS connection OR
-- localhost domain
+**Camera not working:**
+- Ensure you're using HTTPS or localhost
+- Check browser camera permissions
+- Try reloading the page
 
-File protocol (`file://`) will not work due to browser security restrictions.
+**Models not loading:**
+- Check internet connection
+- Disable ad blockers/privacy extensions
+- Check browser console for errors
+
+**Low accuracy:**
+- Capture more training examples (20-30 per class)
+- Ensure good lighting conditions
+- Try different angles and distances
+- Add more diverse examples
+
+**Model not saving:**
+- Check browser localStorage quota
+- Try clearing old saved models
+- Use private/incognito mode to test
+
+## 📄 License
+
+Open source — feel free to use and modify!

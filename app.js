@@ -1,5 +1,5 @@
 // State
-let mobilenet = null;
+let mobilenetModel = null;
 let classifier = null;
 let videoElement = null;
 let stream = null;
@@ -34,7 +34,7 @@ async function init() {
         errorElement.textContent = 'Загрузка моделей...';
         
         // Load MobileNet
-        mobilenet = await mobilenetModule.load();
+        mobilenetModel = await mobilenet.load();
         console.log('MobileNet loaded');
         
         // Create KNN Classifier
@@ -199,7 +199,7 @@ function renderClasses() {
 let captureInterval = null;
 
 async function startCapture(className) {
-    if (!mobilenet || !classifier) {
+    if (!mobilenetModel || !classifier) {
         errorElement.textContent = 'Модели не загружены';
         return;
     }
@@ -213,7 +213,7 @@ async function startCapture(className) {
     captureInterval = setInterval(async () => {
         try {
             const img = tf.browser.fromPixels(videoElement);
-            const activation = mobilenet.infer(img, true);
+            const activation = mobilenetModel.infer(img, true);
             classifier.addExample(activation, className);
             img.dispose();
             
@@ -275,7 +275,7 @@ function stopRecognition() {
 }
 
 async function predict() {
-    if (!recognitionRunning || !mobilenet || !classifier) {
+    if (!recognitionRunning || !mobilenetModel || !classifier) {
         return;
     }
     
@@ -284,7 +284,7 @@ async function predict() {
         
         if (numClasses > 0) {
             const img = tf.browser.fromPixels(videoElement);
-            const activation = mobilenet.infer(img, true);
+            const activation = mobilenetModel.infer(img, true);
             const result = await classifier.predictClass(activation);
             
             img.dispose();
