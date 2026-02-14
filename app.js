@@ -87,11 +87,22 @@ async function initCamera() {
 async function flipCamera() {
     useFrontCamera = !useFrontCamera;
     
+    // Stop recognition during camera switch
+    const wasRecognizing = recognitionRunning;
+    if (wasRecognizing) {
+        stopRecognition();
+    }
+    
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
     }
     
     await initCamera();
+    
+    // Restart recognition if it was active
+    if (wasRecognizing) {
+        startRecognition();
+    }
 }
 
 // Mode switching
@@ -223,10 +234,11 @@ async function startCapture(className) {
         }
         
         try {
-            const img = tf.browser.fromPixels(videoElement);
-            const activation = mobilenetModel.infer(img, true);
-            classifier.addExample(activation, className);
-            img.dispose();
+            tf.tidy(() => {
+                const img = tf.browser.fromPixels(videoElement);
+                const activation = mobilenetModel.infer(img, true);
+                classifier.addExample(activation, className);
+            });
             
             classes[className].examples++;
             
@@ -237,7 +249,6 @@ async function startCapture(className) {
                 examplesEl.textContent = `📸 ${classes[className].examples} примеров`;
             }
             
-            // Schedule next capture
             captureInterval = setTimeout(captureFrame, 100);
             
         } catch (error) {
@@ -268,10 +279,20 @@ function stopCapture() {
 async function startRecognition() {
     const numClasses = classifier.getNumClasses();
     
-    if (numClasses === 0) {
-        resultOverlay.textContent = 'Сначала обучи модель!';
+    if (numClasses < 2) {
+        resultOverlay.textContent = 'Добавь минимум 2 класса!';
         resultOverlay.className = 'result-overlay no-model';
-        recognitionStatus.textContent = 'Нет обученных классов';
+        recognitionStatus.textContent = numClasses === 0 
+            ? 'Нет обученных классов' 
+            : 'Нужно минимум 2 класса для сравнения';
+        return;
+    }
+    
+    // Check that all classes have examples
+    const classesWithoutExamples = Object.keys(classes).filter(c => classes[c].examples === 0);
+    if (classesWithoutExamples.length > 0) {
+        resultOverlay.textContent = `Добавь примеры в: ${classesWithoutExamples.join(', ')}`;
+        resultOverlay.className = 'result-overlay no-model';
         return;
     }
     
@@ -284,7 +305,7 @@ function stopRecognition() {
     recognitionRunning = false;
     
     if (recognitionAnimationId) {
-        cancelAnimationFrame(recognitionAnimationId);
+        clearTimeout(recognitionAnimationId);
         recognitionAnimationId = null;
     }
     
@@ -301,16 +322,18 @@ async function predict() {
         const numClasses = classifier.getNumClasses();
         
         if (numClasses > 0) {
+            // Manual tensor disposal (tf.tidy cannot be used with async operations)
             const img = tf.browser.fromPixels(videoElement);
             const activation = mobilenetModel.infer(img, true);
-            const result = await classifier.predictClass(activation);
+            
+            const prediction = await classifier.predictClass(activation);
             
             img.dispose();
             activation.dispose();
             
             // Display result
-            const predictedClass = result.label;
-            const confidence = result.confidences[predictedClass];
+            const predictedClass = prediction.label;
+            const confidence = prediction.confidences[predictedClass];
             const confidencePercent = Math.round(confidence * 100);
             
             resultOverlay.textContent = `${predictedClass} (${confidencePercent}%)`;
@@ -326,9 +349,24 @@ async function predict() {
         
     } catch (error) {
         console.error('Prediction error:', error);
+        recognitionStatus.textContent = 'Ошибка распознавания, перезапуск...';
+        
+        // Try to recover camera if needed
+        try {
+            if (!videoElement.srcObject) {
+                await initCamera();
+            } else if (videoElement.srcObject && videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
+                await initCamera();
+            }
+        } catch (camError) {
+            console.error('Camera recovery failed:', camError);
+        }
     }
     
-    recognitionAnimationId = requestAnimationFrame(predict);
+    // Throttle: use setTimeout instead of requestAnimationFrame for stability
+    if (recognitionRunning) {
+        recognitionAnimationId = setTimeout(predict, 200);
+    }
 }
 
 // Save/Load model
