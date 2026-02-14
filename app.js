@@ -359,7 +359,7 @@ async function predict() {
     
     try {
         // Check video is actually playing and ready
-        if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2) {
+        if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2 || videoElement.paused) {
             if (recognitionRunning) {
                 recognitionAnimationId = setTimeout(predict, 300);
             }
