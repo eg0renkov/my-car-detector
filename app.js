@@ -87,21 +87,27 @@ async function initCamera() {
 async function flipCamera() {
     useFrontCamera = !useFrontCamera;
     
-    // Stop recognition during camera switch
     const wasRecognizing = recognitionRunning;
-    if (wasRecognizing) {
-        stopRecognition();
-    }
+    stopRecognition();
     
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
-    
-    await initCamera();
-    
-    // Restart recognition if it was active
-    if (wasRecognizing) {
-        startRecognition();
+    try {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        
+        await initCamera();
+        
+        // Wait for video to be ready before restarting recognition
+        if (wasRecognizing) {
+            setTimeout(() => {
+                if (currentMode === 'recognition') {
+                    startRecognition();
+                }
+            }, 500);
+        }
+    } catch (error) {
+        console.error('Flip camera error:', error);
+        errorElement.textContent = 'Ошибка переключения камеры: ' + error.message;
     }
 }
 
@@ -109,20 +115,29 @@ async function flipCamera() {
 function switchMode(mode) {
     currentMode = mode;
     
+    // Always stop recognition first
+    stopRecognition();
+    
     if (mode === 'training') {
         trainingTab.classList.add('active');
         recognitionTab.classList.remove('active');
         trainingMode.classList.add('active');
         recognitionMode.classList.remove('active');
         
-        stopRecognition();
+        // Auto-save when leaving recognition mode (if there's data)
+        autoSave();
     } else {
         trainingTab.classList.remove('active');
         recognitionTab.classList.add('active');
         trainingMode.classList.remove('active');
         recognitionMode.classList.add('active');
         
-        startRecognition();
+        // Small delay to ensure video is ready after UI switch
+        setTimeout(() => {
+            if (currentMode === 'recognition') {
+                startRecognition();
+            }
+        }, 300);
     }
 }
 
@@ -160,6 +175,9 @@ function deleteClass(className) {
         }
         
         renderClasses();
+        
+        // Auto-save after deletion
+        autoSave();
     }
 }
 
@@ -234,11 +252,17 @@ async function startCapture(className) {
         }
         
         try {
-            tf.tidy(() => {
-                const img = tf.browser.fromPixels(videoElement);
-                const activation = mobilenetModel.infer(img, true);
-                classifier.addExample(activation, className);
-            });
+            // Check video is ready
+            if (videoElement.readyState < 2) {
+                captureInterval = setTimeout(captureFrame, 100);
+                return;
+            }
+            
+            const img = tf.browser.fromPixels(videoElement);
+            const activation = mobilenetModel.infer(img, true);
+            classifier.addExample(activation, className);
+            img.dispose();
+            // Note: do NOT dispose activation - KNN classifier keeps a reference to it
             
             classes[className].examples++;
             
@@ -270,9 +294,11 @@ function stopCapture() {
     
     document.querySelectorAll('.capture-btn').forEach(btn => {
         btn.classList.remove('capturing');
-        const className = btn.dataset.class;
         btn.textContent = 'Захватить';
     });
+    
+    // Auto-save after capturing
+    autoSave();
 }
 
 // Recognition
@@ -309,8 +335,10 @@ function stopRecognition() {
         recognitionAnimationId = null;
     }
     
-    resultOverlay.className = 'result-overlay';
-    resultOverlay.textContent = '';
+    if (resultOverlay) {
+        resultOverlay.className = 'result-overlay';
+        resultOverlay.textContent = '';
+    }
 }
 
 async function predict() {
@@ -318,20 +346,26 @@ async function predict() {
         return;
     }
     
+    let img = null;
+    let activation = null;
+    
     try {
+        // Check video is actually playing and ready
+        if (videoElement.readyState < 2 || videoElement.paused) {
+            if (recognitionRunning) {
+                recognitionAnimationId = setTimeout(predict, 300);
+            }
+            return;
+        }
+        
         const numClasses = classifier.getNumClasses();
         
-        if (numClasses > 0) {
-            // Manual tensor disposal (tf.tidy cannot be used with async operations)
-            const img = tf.browser.fromPixels(videoElement);
-            const activation = mobilenetModel.infer(img, true);
+        if (numClasses >= 2) {
+            img = tf.browser.fromPixels(videoElement);
+            activation = mobilenetModel.infer(img, true);
             
             const prediction = await classifier.predictClass(activation);
             
-            img.dispose();
-            activation.dispose();
-            
-            // Display result
             const predictedClass = prediction.label;
             const confidence = prediction.confidences[predictedClass];
             const confidencePercent = Math.round(confidence * 100);
@@ -349,21 +383,13 @@ async function predict() {
         
     } catch (error) {
         console.error('Prediction error:', error);
-        recognitionStatus.textContent = 'Ошибка распознавания, перезапуск...';
-        
-        // Try to recover camera if needed
-        try {
-            if (!videoElement.srcObject) {
-                await initCamera();
-            } else if (videoElement.srcObject && videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
-                await initCamera();
-            }
-        } catch (camError) {
-            console.error('Camera recovery failed:', camError);
-        }
+        recognitionStatus.textContent = 'Ошибка, повтор...';
+    } finally {
+        // ALWAYS dispose tensors, even on error
+        if (img) img.dispose();
+        if (activation) activation.dispose();
     }
     
-    // Throttle: use setTimeout instead of requestAnimationFrame for stability
     if (recognitionRunning) {
         recognitionAnimationId = setTimeout(predict, 200);
     }
@@ -463,6 +489,32 @@ function clearModel() {
     }
 }
 
+// Auto-save function (silent save without alert)
+function autoSave() {
+    try {
+        const numClasses = classifier.getNumClasses();
+        if (numClasses === 0) return;
+        
+        const dataset = classifier.getClassifierDataset();
+        const datasetObj = {};
+        
+        Object.keys(dataset).forEach((className) => {
+            const data = dataset[className].dataSync();
+            datasetObj[className] = Array.from(data);
+        });
+        
+        const modelData = {
+            classes: classes,
+            dataset: datasetObj
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(modelData));
+        console.log('Model auto-saved');
+    } catch (error) {
+        console.error('Auto-save error:', error);
+    }
+}
+
 // Event listeners
 trainingTab.addEventListener('click', () => switchMode('training'));
 recognitionTab.addEventListener('click', () => switchMode('recognition'));
@@ -471,6 +523,11 @@ saveModelBtn.addEventListener('click', saveModelToStorage);
 loadModelBtn.addEventListener('click', loadModelFromStorage);
 clearModelBtn.addEventListener('click', clearModel);
 flipCameraBtn.addEventListener('click', flipCamera);
+
+// Auto-save on page unload
+window.addEventListener('beforeunload', () => {
+    autoSave();
+});
 
 // Initialize
 init();
