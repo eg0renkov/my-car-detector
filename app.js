@@ -493,7 +493,10 @@ function clearModel() {
 function autoSave() {
     try {
         const numClasses = classifier.getNumClasses();
-        if (numClasses === 0) return;
+        if (numClasses === 0) {
+            console.log('Auto-save skipped: no classes to save');
+            return;
+        }
         
         const dataset = classifier.getClassifierDataset();
         const datasetObj = {};
