@@ -305,7 +305,6 @@ function stopRecognition() {
     recognitionRunning = false;
     
     if (recognitionAnimationId) {
-        cancelAnimationFrame(recognitionAnimationId);
         clearTimeout(recognitionAnimationId);
         recognitionAnimationId = null;
     }
@@ -324,14 +323,13 @@ async function predict() {
         
         if (numClasses > 0) {
             // Use tf.tidy for automatic tensor cleanup
-            const result = tf.tidy(() => {
-                const img = tf.browser.fromPixels(videoElement);
-                const activation = mobilenetModel.infer(img, true);
-                return { activation: activation.clone() }; // clone to use outside tidy
-            });
+            const img = tf.browser.fromPixels(videoElement);
+            const activation = mobilenetModel.infer(img, true);
             
-            const prediction = await classifier.predictClass(result.activation);
-            result.activation.dispose();
+            const prediction = await classifier.predictClass(activation);
+            
+            img.dispose();
+            activation.dispose();
             
             // Display result
             const predictedClass = prediction.label;
@@ -355,7 +353,9 @@ async function predict() {
         
         // Try to recover camera if needed
         try {
-            if (!videoElement.srcObject || videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
+            if (!videoElement.srcObject) {
+                await initCamera();
+            } else if (videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
                 await initCamera();
             }
         } catch (camError) {
