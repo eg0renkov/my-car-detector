@@ -144,6 +144,17 @@ h1 {
     gap: 12px;
 }
 
+.training-hint {
+    color: #8b949e;
+    font-size: 13px;
+    text-align: center;
+    padding: 12px;
+    margin-top: 8px;
+    background: rgba(139, 148, 158, 0.1);
+    border-radius: 8px;
+    line-height: 1.4;
+}
+
 .class-card {
     background-color: #161b22;
     border: 1px solid #30363d;
