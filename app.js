@@ -289,9 +289,9 @@ async function startRecognition() {
     }
     
     // Check that all classes have examples
-    const emptyClasses = Object.keys(classes).filter(c => classes[c].examples === 0);
-    if (emptyClasses.length > 0) {
-        resultOverlay.textContent = `Добавь примеры в: ${emptyClasses.join(', ')}`;
+    const classesWithoutExamples = Object.keys(classes).filter(c => classes[c].examples === 0);
+    if (classesWithoutExamples.length > 0) {
+        resultOverlay.textContent = `Добавь примеры в: ${classesWithoutExamples.join(', ')}`;
         resultOverlay.className = 'result-overlay no-model';
         return;
     }
