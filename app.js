@@ -12,6 +12,7 @@ let useFrontCamera = false;
 // Constants
 const STORAGE_KEY = 'myCarDetectorModel';
 const CONFIDENCE_THRESHOLD = 0.80;
+const APP_VERSION = 'v7';
 
 // UI Elements
 const trainingTab = document.getElementById('training-tab');
@@ -45,6 +46,7 @@ async function init() {
         await initCamera();
         
         errorElement.textContent = '';
+        console.log(`🚗 My Car Detector ${APP_VERSION} loaded`);
         
         // Try to load saved model
         loadModelFromStorage();
