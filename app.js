@@ -209,14 +209,17 @@ function renderClasses() {
     
     // Add event listeners
     document.querySelectorAll('.capture-btn').forEach(btn => {
-        btn.addEventListener('mousedown', (e) => startCapture(e.target.dataset.class));
+        const className = btn.dataset.class;
+        
+        btn.addEventListener('mousedown', () => startCapture(className));
         btn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            startCapture(e.target.dataset.class);
+            startCapture(className);
         });
         btn.addEventListener('mouseup', stopCapture);
         btn.addEventListener('touchend', stopCapture);
         btn.addEventListener('mouseleave', stopCapture);
+        btn.addEventListener('touchcancel', stopCapture);
     });
     
     document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -229,6 +232,11 @@ let captureInterval = null;
 let isCapturing = false;
 
 async function startCapture(className) {
+    if (!className || !classes[className]) {
+        console.error('Invalid class name for capture:', className);
+        return;
+    }
+    
     if (!mobilenetModel || !classifier) {
         errorElement.textContent = 'Модели не загружены';
         return;
@@ -252,9 +260,9 @@ async function startCapture(className) {
         }
         
         try {
-            // Check video is ready
-            if (videoElement.readyState < 2) {
-                captureInterval = setTimeout(captureFrame, 100);
+            // Check video is ready - ensure it has actual pixel data
+            if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2) {
+                captureInterval = setTimeout(captureFrame, 200);
                 return;
             }
             
@@ -351,7 +359,7 @@ async function predict() {
     
     try {
         // Check video is actually playing and ready
-        if (videoElement.readyState < 2 || videoElement.paused) {
+        if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2 || videoElement.paused) {
             if (recognitionRunning) {
                 recognitionAnimationId = setTimeout(predict, 300);
             }
