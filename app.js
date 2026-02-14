@@ -322,7 +322,7 @@ async function predict() {
         const numClasses = classifier.getNumClasses();
         
         if (numClasses > 0) {
-            // Use tf.tidy for automatic tensor cleanup
+            // Manual tensor disposal (tf.tidy cannot be used with async operations)
             const img = tf.browser.fromPixels(videoElement);
             const activation = mobilenetModel.infer(img, true);
             
@@ -355,7 +355,7 @@ async function predict() {
         try {
             if (!videoElement.srcObject) {
                 await initCamera();
-            } else if (videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
+            } else if (videoElement.srcObject && videoElement.srcObject.getTracks().some(t => t.readyState === 'ended')) {
                 await initCamera();
             }
         } catch (camError) {
